@@ -1,0 +1,95 @@
+/* ══════════════════════════════════════════════════════════════════
+   chat.css —— 左栏：人类 ↔ DeepSeek 的对话
+   她是被"读"的：所以她的气泡用细竖线起头，而不是对话泡。
+   ══════════════════════════════════════════════════════════════════ */
+#chat{width:var(--chat-w);min-width:0;order:var(--chat-order);
+  display:flex;flex-direction:column;position:relative;
+  border-right:1px solid var(--line);
+  background:rgba(8,12,17,.52);backdrop-filter:blur(16px) saturate(115%);
+  -webkit-backdrop-filter:blur(16px) saturate(115%);overflow:hidden}
+#chat.noBg{background:rgba(4,6,9,.02)}
+
+/* ISOLATION 末尾：窗口还在，只是里面已经没有人了。
+   一整片纯黑会被读成"渲染挂了"，所以留一圈虚线框和一行灰色标签 ——
+   空，但要让人看出这是"被清空的空"，不是"没画出来的空"。 */
+#chat.voided::before{content:"";position:absolute;inset:10px;border-radius:7px;
+  border:1px dashed rgba(255,255,255,.135);pointer-events:none}
+#chat.voided::after{content:"empty";position:absolute;left:15px;top:16px;
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.32em;color:var(--dim);
+  opacity:.42;pointer-events:none}
+
+/* ISOLATION 之后空出来的那张白纸：只有一个闪的光标 */
+#chatVoid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  gap:8px;pointer-events:none;opacity:0}
+#voidCur{width:7px;height:13px;background:var(--dim);display:inline-block}
+#voidTxt{font-style:normal;font-size:10px;letter-spacing:.34em;color:var(--dim)}
+
+/* 125.7s "Challenging your god" —— 空面板里开始刷报错。
+   这是全片唯一一次让"错误"当画面内容：她挑战的是一个不会回话的对象。 */
+#voidErr{position:absolute;left:20px;right:20px;top:26px;text-align:left;
+  font-family:var(--mono);font-size:9px;line-height:2.05;white-space:pre;
+  color:rgba(255,72,58,.60);letter-spacing:.02em;pointer-events:none}
+#voidErr b{color:rgba(255,138,104,.88);font-weight:400}
+/* 一道从顶部落下的红线，像判决 */
+#voidLine{position:absolute;left:50%;top:0;width:1px;height:0;
+  background:linear-gradient(180deg, rgba(255,70,52,.0), rgba(255,70,52,.55) 18%, rgba(255,70,52,.28));
+  pointer-events:none;display:block}
+#chat.empty1 #chatBody,#chat.empty1 #chatInput{opacity:0}
+
+#chatHead{height:40px;flex:0 0 40px;display:flex;align-items:center;gap:9px;
+  padding:0 12px;border-bottom:1px solid var(--line)}
+/* 头像直接用原画里裁出来的那一块（鲸鱼娘1.png 的脸部），
+   不再靠 background-size 百分比去"猜"位置 —— 16px 下猜错就是一颗蓝点 */
+#avatar{width:24px;height:24px;border-radius:5px;flex:0 0 24px;
+  background:#101820 url("../鲸鱼娘_头像.png") no-repeat;background-size:112%;background-position:50% 46%;
+  border:1px solid rgba(255,255,255,.14);opacity:0;transition:none}
+#chatMeta{min-width:0;flex:1}
+#cName{font-size:11px;color:var(--ink);line-height:1.2;display:flex;align-items:center;gap:6px}
+#cName i{width:5px;height:5px;border-radius:50%;background:var(--dim);display:inline-block;
+  box-shadow:0 0 0 0 rgba(53,224,208,.5)}
+#chat.live #cName i{background:var(--cy);animation:pulse 2.4s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(53,224,208,.45)}100%{box-shadow:0 0 0 7px rgba(53,224,208,0)}}
+#cModel{font-size:9px;color:var(--dim);opacity:.7;letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#chatBody{flex:1;min-height:0;overflow:hidden;padding:12px 12px 6px;
+  display:flex;flex-direction:column;justify-content:flex-end;gap:7px}
+#chatBody .sys{font-size:9.5px;color:var(--dim);opacity:.55;letter-spacing:.02em;line-height:1.5}
+#chatBody .sys b{color:var(--cy);opacity:.85;font-weight:400}
+
+/* 她：头像 + 文本。头像让她成为"一个账号"，而不是一段被引用的诗 */
+#chatBody .her{display:grid;grid-template-columns:16px 1fr;column-gap:8px;
+  align-items:start;max-width:100%}
+#chatBody .her .av{width:16px;height:16px;border-radius:50%;margin-top:1px;
+  background:#0e1620 url("../鲸鱼娘_头像.png") no-repeat;
+  background-size:132%;background-position:50% 44%;
+  border:1px solid rgba(255,255,255,.14);opacity:.72;filter:saturate(.8)}
+#chatBody .her .tx{font-size:10.5px;line-height:1.62;
+  color:rgba(232,236,239,.66);padding:3px 8px 4px;
+  background:rgba(255,255,255,.028);border-radius:0 5px 5px 0;
+  border-left:1px solid rgba(120,200,215,.22)}
+
+#chatBody .me{align-self:flex-end;max-width:88%;font-size:11.5px;line-height:1.6;
+  color:var(--ink);text-align:right;padding:6px 10px;border-radius:6px;
+  background:color-mix(in srgb, var(--cy) 9%, rgba(255,255,255,.04));
+  border:1px solid rgba(255,255,255,.08);position:relative}
+#chatBody .me .tm{display:block;font-size:8px;color:var(--dim);opacity:.45;
+  letter-spacing:.08em;margin-top:2px}
+#chatBody .ts{font-size:8px;color:var(--dim);opacity:.38;letter-spacing:.10em;
+  padding-left:24px;margin-top:-1px}
+
+#chatInput{margin:0 12px 8px;border:1px solid var(--line2);border-radius:8px;
+  padding:8px 10px;min-height:52px;display:flex;flex-direction:column;justify-content:space-between;
+  background:rgba(255,255,255,.02)}
+#chatInput .ph{font-size:10px;color:var(--dim);opacity:.62;line-height:1.4}
+#chatInput .typed{font-size:11.5px;color:var(--ink);line-height:1.5;min-height:16px}
+#chatInput .typed .car{display:inline-block;width:6px;height:11px;background:var(--amber);
+  vertical-align:-1px;margin-left:1px}
+#chatTools{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim);opacity:.55}
+#chatTools .k{width:16px;height:16px;border:1px solid var(--line2);border-radius:4px;
+  display:grid;place-items:center;font-size:9px}
+
+#chatFoot{height:22px;flex:0 0 22px;display:flex;align-items:center;gap:10px;
+  padding:0 12px;font-size:9px;color:var(--dim);opacity:.62;
+  border-top:1px solid rgba(255,255,255,.05)}
+#cache.hit{color:var(--cy);opacity:1}

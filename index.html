@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>world.execute(me);</title>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  world.execute(me);  —  Terminal Workbench MV                        │
+  │                                                                      │
+  │  素材放置说明（与本文件同目录）：                                      │
+  │    world.execute (me).mp3                                             │
+  │    鲸鱼娘_头像.png   （左栏头像，从 1.png 裁出，不要删）                │
+  │                                                                      │
+  │  总时长 212.0s                                                        │
+  │  所有视觉由纯函数 update(t) 决定，支持任意拖拽毫秒级跳转。              │
+  │                                                                      │
+  │  必须用本地服务器打开（python -m http.server 8080）：                  │
+  │  ES Module + 音频解码 + 纹理加载在 file:// 下都会被拦。                 │
+  └──────────────────────────────────────────────────────────────────────┘
+
+  工程结构（v10：世界面板 = 她内部的机器）
+  ├─ index.html              骨架 + importmap（唯一入口）
+  ├─ styles/
+  │   ├─ base.css            变量 / 舞台 / 顶栏 / 大字 / 遮罩 / 响应式
+  │   ├─ chat.css            左栏对话（含头像切片）
+  │   └─ hud.css             取景窗 / 机器画布 / 公式 / STDOUT / 进度条
+  └─ src/
+      ├─ main.js             启动、时钟、音频、事件、逐帧调度
+      ├─ core/
+      │   ├─ config.js       时长、粒子上限、调色板
+      │   ├─ math.js         缓动 / 随机 / 哈希（全局唯一随机源）
+      │   ├─ clock.js        时间轴与播放状态（唯一权威时钟）
+      │   ├─ stage.js        renderer / scene / camera / 环境光
+      │   ├─ post.js         EffectComposer + Bloom + 调色 pass
+      │   ├─ view.js         面板布局共享状态（换边 / plotRect）
+      │   └─ camera.js       按绘图区反算取景
+      ├─ data/
+      │   ├─ lyrics.js       LRC 事件表（英 / 中）+ 二分查找 + 关键词识别
+      │   └─ acts.js         13 幕 / 打击点 / 心跳点
+      ├─ world/
+      │   ├─ machine.js      ★ v10 主体：2D 画布上的"她内部的机器"（30 段）
+      │   ├─ particles.js    全局单例粒子池（只剩远景尘埃一种形态）
+      │   ├─ plot.js         坐标纸（只在 LOVE 段出现）
+      │   ├─ shapes.js       坐标纸上的曲线函数 (u,t,out)：心 / 心电 / 溶解
+      │   ├─ heartField.js   心形隐函数（JS 端求值）
+      │   └─ grid.js         地面网格（全片 uInt=0，关着）
+      ├─ ui/
+      │   ├─ dom.js          元素引用 + 十二宫格数字层
+      │   ├─ slices.js       十二宫格计数
+      │   ├─ layout.js       面板宽度 / 左右换边（由 t 驱动）
+      │   ├─ chat.js         对话流 / 输入框 / 逐级剥离
+      │   ├─ stdout.js       STDOUT 逐字符解码 + 中文整行淡入
+      │   ├─ equation.js     左下角读数栏（幕内主 / 副读数）
+      │   ├─ attrs.js        属性表（v10 起 display:none）
+      │   ├─ typeMoment.js   全片仅 5 次的大字时刻
+      │   └─ hud.js          一帧内所有 DOM 的更新入口
+      └─ scene/
+          ├─ machineScript.js 机器节目单：30 段 mode + 每段两行读数
+          ├─ mathScript.js    坐标纸节目单：只服务 LOVE 段
+          ├─ colorScript.js   逐幕色温曲线（19 关键帧 → 全场 tint）
+          └─ apply.js         applyScene(t)：把时间轴翻译成场景状态
+-->
+<link rel="stylesheet" href="./styles/base.css">
+<link rel="stylesheet" href="./styles/chat.css">
+<link rel="stylesheet" href="./styles/hud.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <div id="vign"></div>
+
+  <div id="hud">
+    <header id="topbar">
+      <div id="brand">WORLD<b>.</b>EXECUTE<b>(</b>ME<b>);</b></div>
+      <div id="prompt">whale@deepseek:~$<span class="cur"></span></div>
+      <div id="waveWrap"><canvas id="wave"></canvas></div>
+      <div class="spacer"></div>
+      <div id="actInfo">
+        <span id="actNo">01 / BOOT</span>
+        <span id="actRange">00:00.0 → 00:16.0</span>
+      </div>
+      <span id="status">BOOT</span>
+      <span id="tc"><b>00:00.0</b> / 03:32</span>
+    </header>
+
+    <main id="main">
+      <section id="chat">
+        <div id="chatHead">
+          <div id="avatar"></div>
+          <div id="chatMeta">
+            <div id="cName">鲸鱼娘 <i></i></div>
+            <div id="cModel">deepseek-v4.1 · flash — 未连接</div>
+          </div>
+        </div>
+        <div id="chatBody"></div>
+        <div id="chatInput">
+          <div class="ph">发消息或创建任务, / 调用指令, @ 文件...</div>
+          <div class="typed"><span id="typedTxt"></span><span class="car"></span></div>
+          <div id="chatTools"><span class="k">+</span><span class="k">@</span></div>
+        </div>
+        <div id="chatVoid"><span id="voidCur"></span><em id="voidTxt"></em>
+          <div id="voidErr"></div><i id="voidLine"></i>
+        </div>
+        <div id="chatFoot">
+          <span id="rounds">0 轮 0 步</span>
+          <span id="tokens">0 tok</span>
+          <span id="cache">缓存命中 0%</span>
+        </div>
+      </section>
+
+      <section id="world">
+        <div id="worldBorder"></div>
+        <div id="worldHead">
+          <div id="fnName">boot(me)</div>
+          <div id="assign"><em>me</em><em>:=</em><b>undefined</b></div>
+        </div>
+        <div id="plot">
+          <canvas id="machine"></canvas>
+          <i class="ck a"></i><i class="ck b"></i><i class="ck c"></i><i class="ck d"></i>
+        </div>
+        <div id="eq"><b id="eqMain"></b><i id="eqSub"></i></div>
+        <div id="attrs"></div>
+        <div id="worldFoot">
+          <span id="stepLabel">step 00/30</span>
+          <div id="stepBar"><i></i></div>
+          <span id="stepVal">0.000</span>
+        </div>
+      </section>
+
+      <aside id="ops">
+        <div id="opsHead">ops</div>
+        <div id="opsGhost"></div>
+        <div id="opsList"></div>
+      </aside>
+    </main>
+
+    <footer id="stdout">
+      <div id="stdoutLabel"><span>stdout · tokens</span><span class="r" id="stdoutRight">streaming</span></div>
+      <div id="lineGhost"></div>
+      <div id="lineMain"><span class="pfx">&gt;</span><span id="chars"></span><span id="cur"></span></div>
+      <div id="zhLine"></div>
+    </footer>
+
+    <div id="credit">
+      <span>角色 <b>鲸鱼娘</b></span><span>·</span>
+      <span>立绘 <b>原作署名 / CC BY-NC-SA 4.0</b></span><span>·</span>
+      <span>Music <b>Mili — world.execute(me);</b></span><span>·</span>
+      <span><b>本视频由 AI 生成</b></span>
+    </div>
+
+    <div id="transport">
+      <span class="btn" id="bPlay">❚❚</span>
+      <span class="btn" id="bReplay">↺</span>
+      <div id="seekWrap">
+        <div id="seekTrack"></div>
+        <div id="seekFill"></div>
+        <div id="seekHead"></div>
+        <div id="seekTip"></div>
+      </div>
+      <span id="tSeek">00:00.0</span>
+      <div id="ctrl">
+        <span class="sel" id="bSub">字幕</span>
+        <span class="sel" id="bMute">声音</span>
+        <span class="sel on" id="bRatio">16:9</span>
+        <span class="sel" id="bRes">1080p</span>
+        <span class="sel" id="bHide">隐藏</span>
+        <span id="fps" style="min-width:44px;text-align:right;opacity:.5">— fps</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="bigRule"></div>
+  <div id="bigType"></div>
+
+  <div id="gate">
+    <div class="g1">TERMINAL WORKBENCH</div>
+    <div class="g2">world.execute(me);</div>
+    <div class="g3"><span class="dot"></span><span>点击开始 · 03:32</span></div>
+    <div class="g4">建议使用本地服务器打开（python -m http.server 8080）<br>空格暂停 · ←→ 微调 · H 隐藏界面 · M 静音 · L 字幕 · 1–9 跳章节</div>
+  </div>
+  <div id="hint"></div>
+</div>
+
+<audio id="audio" src="world.execute (me).mp3" preload="auto" crossorigin="anonymous"></audio>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
