@@ -5,6 +5,8 @@
 
 `Three.js r160` · `原生 ESM，零构建` · `212 s / 60 fps` · `WebGL 后处理 + Canvas 2D`
 
+在线预览地址:https://cxmzkla.github.io/world-execute-me-web/index.html
+
 视频地址：https://www.bilibili.com/video/BV18bnN6nEAh/?spm_id_from=333.1387.list.card_archive.click&vd_source=e405576d9b3e09a520abd5aee57e9b4a
 
 
